@@ -221,3 +221,112 @@ Made changes.
 - The missing file test now raises FileNotFoundError as expected
 - Reviewed the services.py changes, only the requested changes were made.
 ---
+
+## Step 2a - Configure email and folder settings, logging, and the notifications module
+
+### Prompt
+```
+Update settings.py and create processor/notifications.py. Use the Notifications and Configuration sections in #file:DESIGN.md as a reference.
+
+Do not build inbox scanning, file moving, commands, or scheduling yet. Don't change services.py or its existing tests.
+
+Use console email by default. Read the SMTP settings and sender address from .env, and update .env.example with placeholders.
+
+Read the inbox, output, processed, and error folder paths from .env, with defaults under data/.
+
+Set up logging to the console and a log file in logs/.
+
+Add a function that takes the results from process_csv_rows and the input file name, and sends emails as described in the design. Return the addresses that failed so the inbox job can use them later.
+
+Use logging, a docstring on each function, and comments explaining the important parts.
+
+Add unit tests for the main behaviors, without sending real emails.
+
+Run python manage.py test processor -v 2 and report the test count and whether all tests passed.
+```
+
+### Copilot response
+````
+Read [](file:///c%3A/Project/zipcode_notifier/settings.py)
+
+Searched for files matching `**/.env*`, 1 match
+
+Read [](file:///c%3A/Project/DESIGN.md)
+
+Read [](file:///c%3A/Project/.env.example)
+
+I’ve narrowed the remaining work to the notification layer and config. I’m adding the notification tests first so the behavior is pinned down before the implementation is written.
+
+Created [](file:///c%3A/Project/processor/test_notifications.py)
+
+Ran terminal command: python manage.py test processor -v 2
+Completed with input: python manage.py test processor -v 2
+
+Replacing 28 lines with 85 lines in [](file:///c%3A/Project/zipcode_notifier/settings.py), [](file:///c%3A/Project/.env.example)
+
+
+```
+
+```
+
+```
+
+```
+
+
+Created [](file:///c%3A/Project/processor/notifications.py)
+
+Replacing 16 lines with 24 lines in [](file:///c%3A/Project/processor/notifications.py), [](file:///c%3A/Project/zipcode_notifier/settings.py)
+
+
+```
+
+```
+
+```
+
+```
+
+
+Ran terminal command: python manage.py test processor -v 2
+
+## ✅ Changes made
+
+- Updated settings.py to:
+  - read email backend, SMTP config, and sender from environment defaults
+  - default to console email locally
+  - read inbox/output/processed/error/log paths from env with project-local defaults under data/ and logs/
+  - configure logging to both the console and a file in logs/
+
+- Added notifications.py with:
+  - per-file email summary sending
+  - case-insensitive deduplication of recipients
+  - invalid email skipping
+  - per-recipient failure tracking so the inbox job can handle those addresses later
+  - logging and docstrings/comments
+
+- Updated .env.example with placeholders for the SMTP settings and folder paths.
+
+---
+
+## Verification
+
+I ran:
+
+`python manage.py test processor -v 2`
+
+Fresh result:
+- Test count: 19
+- All tests passed: Yes
+
+Evidence from the run:
+- “Ran 19 tests in 0.040s”
+- “OK”
+
+Made changes.
+````
+
+### Notes
+
+
+---

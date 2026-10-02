@@ -13,15 +13,32 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 from pathlib import Path
 from decouple import config
 
+
+def resolve_path(value):
+    """Convert an env-provided path into one rooted under the project directory."""
+    path = Path(value)
+    return path if path.is_absolute() else BASE_DIR / path
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / 'data'
+INBOX_DIR = resolve_path(config('INBOX_DIR', default=str(DATA_DIR / 'inbox')))
+OUTPUT_DIR = resolve_path(config('OUTPUT_DIR', default=str(DATA_DIR / 'output')))
+PROCESSED_DIR = resolve_path(config('PROCESSED_DIR', default=str(DATA_DIR / 'processed')))
+ERROR_DIR = resolve_path(config('ERROR_DIR', default=str(DATA_DIR / 'error')))
+LOGS_DIR = resolve_path(config('LOGS_DIR', default=str(BASE_DIR / 'logs')))
+
+# Create the data and log directories early so they are ready for future processing steps.
+for directory in (INBOX_DIR, OUTPUT_DIR, PROCESSED_DIR, ERROR_DIR, LOGS_DIR):
+    directory.mkdir(parents=True, exist_ok=True)
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY')
+SECRET_KEY = config('SECRET_KEY', default='dev-secret-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -124,6 +141,44 @@ STATIC_URL = 'static/'
 
 MAILERS = {
     'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+        'BACKEND': config(
+            'EMAIL_BACKEND',
+            default='django.core.mail.backends.console.EmailBackend',
+        ),
+        'OPTIONS': {
+            'HOST': config('EMAIL_HOST', default='localhost'),
+            'PORT': config('EMAIL_PORT', default=25, cast=int),
+            'USE_TLS': config('EMAIL_USE_TLS', default=False, cast=bool),
+            'USERNAME': config('EMAIL_HOST_USER', default=''),
+            'PASSWORD': config('EMAIL_HOST_PASSWORD', default=''),
+            'TIMEOUT': config('EMAIL_TIMEOUT', default=10, cast=int),
+        },
+    },
+}
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='zip-notifier@example.com')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '%(asctime)s %(levelname)s %(name)s %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': str(LOGS_DIR / 'zipcode_notifier.log'),
+            'formatter': 'verbose',
+            'encoding': 'utf-8',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
     },
 }

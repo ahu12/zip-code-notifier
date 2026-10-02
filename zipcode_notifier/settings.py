@@ -145,16 +145,20 @@ MAILERS = {
             'EMAIL_BACKEND',
             default='django.core.mail.backends.console.EmailBackend',
         ),
-        'OPTIONS': {
-            'HOST': config('EMAIL_HOST', default='localhost'),
-            'PORT': config('EMAIL_PORT', default=25, cast=int),
-            'USE_TLS': config('EMAIL_USE_TLS', default=False, cast=bool),
-            'USERNAME': config('EMAIL_HOST_USER', default=''),
-            'PASSWORD': config('EMAIL_HOST_PASSWORD', default=''),
-            'TIMEOUT': config('EMAIL_TIMEOUT', default=10, cast=int),
-        },
+        'OPTIONS': {},
     },
 }
+
+if MAILERS['default']['BACKEND'] == 'django.core.mail.backends.smtp.EmailBackend':
+    MAILERS['default']['OPTIONS'] = {
+        'host': config('EMAIL_HOST', default='localhost'),
+        'port': config('EMAIL_PORT', default=25, cast=int),
+        'use_tls': config('EMAIL_USE_TLS', default=False, cast=bool),
+        'username': config('EMAIL_HOST_USER', default=''),
+        'password': config('EMAIL_HOST_PASSWORD', default=''),
+        'timeout': config('EMAIL_TIMEOUT', default=10, cast=int),
+    }
+
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='zip-notifier@example.com')
 
 LOGGING = {

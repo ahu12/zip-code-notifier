@@ -13,8 +13,7 @@ class NotificationServiceTests(SimpleTestCase):
             settings.MAILERS["default"]["BACKEND"],
             "django.core.mail.backends.console.EmailBackend",
         )
-        self.assertEqual(settings.MAILERS["default"]["OPTIONS"]["HOST"], "localhost")
-        self.assertEqual(settings.MAILERS["default"]["OPTIONS"]["TIMEOUT"], 10)
+        self.assertEqual(settings.MAILERS["default"]["OPTIONS"], {})
         self.assertEqual(settings.INBOX_DIR.name, "inbox")
         self.assertEqual(settings.OUTPUT_DIR.name, "output")
         self.assertEqual(settings.PROCESSED_DIR.name, "processed")

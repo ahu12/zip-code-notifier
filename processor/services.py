@@ -36,44 +36,41 @@ def read_input_csv(csv_file):
         CSVValidationError: If the file is empty, has missing required headers, or
             contains headers but no data rows.
     """
-    try:
-        with open(csv_file, "r", encoding="utf-8-sig", newline="") as handle:
-            reader = csv.DictReader(handle)
-            fieldnames = reader.fieldnames
+    with open(csv_file, "r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = reader.fieldnames
 
-            if not fieldnames:
-                raise CSVValidationError("The input CSV is empty or missing a header row.")
+        if not fieldnames:
+            raise CSVValidationError("The input CSV is empty or missing a header row.")
 
-            cleaned_fields = [
-                (name or "").strip().lstrip("\ufeff") for name in fieldnames
-            ]
-            reader.fieldnames = cleaned_fields
+        cleaned_fields = [
+            (name or "").strip().lstrip("\ufeff") for name in fieldnames
+        ]
+        reader.fieldnames = cleaned_fields
 
-            if "zip_code" not in cleaned_fields or "email" not in cleaned_fields:
-                raise CSVValidationError(
-                    "The input CSV must contain 'zip_code' and 'email' headers."
-                )
+        if "zip_code" not in cleaned_fields or "email" not in cleaned_fields:
+            raise CSVValidationError(
+                "The input CSV must contain 'zip_code' and 'email' headers."
+            )
 
-            rows = []
-            for row in reader:
-                if row is None:
-                    continue
-                cleaned_row = {
-                    "zip_code": (row.get("zip_code") or "").strip(),
-                    "email": (row.get("email") or "").strip(),
-                }
-                if not any(value not in (None, "") for value in cleaned_row.values()):
-                    continue
-                rows.append(cleaned_row)
+        rows = []
+        for row in reader:
+            if row is None:
+                continue
+            cleaned_row = {
+                "zip_code": (row.get("zip_code") or "").strip(),
+                "email": (row.get("email") or "").strip(),
+            }
+            if not any(value not in (None, "") for value in cleaned_row.values()):
+                continue
+            rows.append(cleaned_row)
 
-            if not rows:
-                raise CSVValidationError(
-                    "The input CSV contains headers but no data rows."
-                )
+        if not rows:
+            raise CSVValidationError(
+                "The input CSV contains headers but no data rows."
+            )
 
-            return rows
-    except FileNotFoundError as exc:
-        raise CSVValidationError(f"Input file not found: {csv_file}") from exc
+        return rows
 
 
 def _normalize_zip_code(zip_code):
@@ -195,8 +192,6 @@ def lookup_zip_code(zip_code):
         except (
             requests.exceptions.Timeout,
             requests.exceptions.ConnectionError,
-            TimeoutError,
-            ConnectionError,
         ):
             if attempt < 3:
                 logger.warning(

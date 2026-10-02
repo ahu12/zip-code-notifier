@@ -130,6 +130,7 @@ class ProcessorServiceTests(SimpleTestCase):
             {"zip_code": "12 345", "email": "user@example.com"},
             {"zip_code": "ABC", "email": "user@example.com"},
             {"zip_code": "", "email": "user@example.com"},
+            {"zip_code": "123-4567", "email": "user@example.com"},
         ]
 
         results = process_csv_rows(rows)
@@ -140,6 +141,8 @@ class ProcessorServiceTests(SimpleTestCase):
         self.assertEqual(results[3]["status"], "INVALID_ZIP")
         self.assertEqual(results[4]["status"], "INVALID_ZIP")
         self.assertEqual(results[5]["status"], "INVALID_ZIP")
+        self.assertEqual(results[6]["status"], "INVALID_ZIP")
+        self.assertEqual(results[6]["zip_code"], "123-4567")
         self.assertEqual(mock_lookup.call_count, 2)
 
     @mock.patch("processor.services.time.sleep")

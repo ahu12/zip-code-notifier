@@ -6,6 +6,7 @@ from unittest import mock
 import requests
 from django.test import SimpleTestCase
 
+from processor.inbox import process_inbox
 from processor.services import (
     CSVValidationError,
     lookup_zip_code,
@@ -266,3 +267,90 @@ class ProcessorServiceTests(SimpleTestCase):
         finally:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
+
+
+class InboxProcessingTests(SimpleTestCase):
+    @mock.patch("processor.inbox.send_result_notifications", return_value=[])
+    @mock.patch("processor.services.lookup_zip_code")
+    def test_process_inbox_moves_valid_file_to_processed_and_writes_output(self, mock_lookup, mock_notifications):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbox_dir = os.path.join(tmpdir, "inbox")
+            output_dir = os.path.join(tmpdir, "output")
+            processed_dir = os.path.join(tmpdir, "processed")
+            error_dir = os.path.join(tmpdir, "error")
+            for directory in (inbox_dir, output_dir, processed_dir, error_dir):
+                os.makedirs(directory, exist_ok=True)
+
+            input_path = os.path.join(inbox_dir, "input.csv")
+            with open(input_path, "w", encoding="utf-8", newline="") as handle:
+                handle.write("zip_code,email\n12345,user@example.com\n")
+
+            mock_lookup.return_value = {
+                "zip_code": "12345",
+                "state": "California",
+                "state_abbreviation": "CA",
+                "status": "OK",
+            }
+
+            process_inbox(inbox_dir, output_dir, processed_dir, error_dir)
+
+            self.assertFalse(os.path.exists(input_path))
+            processed_files = os.listdir(processed_dir)
+            self.assertEqual(len(processed_files), 1)
+            self.assertIn("input", processed_files[0])
+            self.assertEqual(len(os.listdir(output_dir)), 1)
+            self.assertTrue(mock_notifications.called)
+
+    @mock.patch("processor.inbox.send_result_notifications", return_value=["user@example.com"])
+    @mock.patch("processor.services.lookup_zip_code")
+    def test_process_inbox_moves_email_failures_to_error(self, mock_lookup, mock_notifications):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbox_dir = os.path.join(tmpdir, "inbox")
+            output_dir = os.path.join(tmpdir, "output")
+            processed_dir = os.path.join(tmpdir, "processed")
+            error_dir = os.path.join(tmpdir, "error")
+            for directory in (inbox_dir, output_dir, processed_dir, error_dir):
+                os.makedirs(directory, exist_ok=True)
+
+            input_path = os.path.join(inbox_dir, "email_fail.csv")
+            with open(input_path, "w", encoding="utf-8", newline="") as handle:
+                handle.write("zip_code,email\n12345,user@example.com\n")
+
+            mock_lookup.return_value = {
+                "zip_code": "12345",
+                "state": "California",
+                "state_abbreviation": "CA",
+                "status": "OK",
+            }
+
+            process_inbox(inbox_dir, output_dir, processed_dir, error_dir)
+
+            self.assertFalse(os.path.exists(input_path))
+            self.assertEqual(len(os.listdir(error_dir)), 1)
+            self.assertEqual(len(os.listdir(output_dir)), 1)
+            self.assertEqual(len(os.listdir(processed_dir)), 0)
+            self.assertTrue(mock_notifications.called)
+
+    @mock.patch("processor.inbox.send_result_notifications")
+    @mock.patch("processor.services.lookup_zip_code")
+    def test_process_inbox_moves_invalid_csv_to_error(self, mock_lookup, mock_notifications):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbox_dir = os.path.join(tmpdir, "inbox")
+            output_dir = os.path.join(tmpdir, "output")
+            processed_dir = os.path.join(tmpdir, "processed")
+            error_dir = os.path.join(tmpdir, "error")
+            for directory in (inbox_dir, output_dir, processed_dir, error_dir):
+                os.makedirs(directory, exist_ok=True)
+
+            input_path = os.path.join(inbox_dir, "invalid.csv")
+            with open(input_path, "w", encoding="utf-8", newline="") as handle:
+                handle.write("email\nuser@example.com\n")
+
+            process_inbox(inbox_dir, output_dir, processed_dir, error_dir)
+
+            self.assertFalse(os.path.exists(input_path))
+            self.assertEqual(len(os.listdir(error_dir)), 1)
+            self.assertEqual(len(os.listdir(output_dir)), 0)
+            self.assertEqual(len(os.listdir(processed_dir)), 0)
+            mock_lookup.assert_not_called()
+            mock_notifications.assert_not_called()

@@ -15,7 +15,6 @@ from django.core.validators import validate_email
 
 logger = logging.getLogger(__name__)
 
-
 def _normalize_email_address(email):
     """Return a lowercase email string with surrounding whitespace removed."""
     return (email or "").strip().lower()

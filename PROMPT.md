@@ -499,6 +499,147 @@ Made changes.
 ````
 
 ### Notes
+- Copilot initially used EMAIL_BACKEND to store the backend names in settings.py. Since it was uppercase, Django treated it as a setting which conflicted with MAILERS. Copilot fixed this on the second test run
+- Copilot updated the settings test to check for lowercase option names
+- Ran python -W always manage.py check. No warnings
+- Tested console email with data/test_input.csv. One email printed for each valid address with its ZIP results. The invalid email was skipped, and send_result_notifications returned no failures.
+---
+
+## Step 2b - Inbox job and process inbox command
+
+### Prompt
+```
+Create a function that processes the inbox once. Add a command so I can run it using python manage.py process_inbox. Use #file:DESIGN.md as a reference, along with the existing functions in services.py and notifications.py and the folder settings.
+
+Do not build scheduling yet. Do not change services.py, notifications.py, or their existing tests.
+
+Follow the File Processing section for handling each file and the Output section for file naming.
+
+Log each scan and the result for each file.
+
+Add unit tests for the main file processing outcomes, using temporary folders and mocking the API and email.
+
+Run python manage.py test processor -v 2 and report the test count and whether all tests passed.
+```
+
+### Copilot response
+````
+I’m checking the existing design and processing code first so the new command and tests match the project’s intended behavior before I implement it.
+
+Created 4 todos
+
+Read 
+
+Read , lines 1 to 260
+
+Read 
+
+Read , lines 260 to 310
+
+Read , lines 1 to 260
+
+Read , lines 260 to 269
+
+I’ve confirmed the ZIP/email processing rules and the status handling; next I’m wiring the single-scan inbox job to those exact rules and the project’s folder configuration.
+
+Read 
+
+Searched for files matching `**/management/**/*.py`, no matches
+
+Read 
+
+Read 
+
+Searched for regex `process_inbox|run_scheduler|inbox.*scan|output.*timestamp|error.*folder|processed.*folder` (`**/*.{py,md}`), 9 results
+
+Read , lines 220 to 520
+
+Read , lines 520 to 532
+
+I’ve narrowed the missing behavior to a single inbox-processing entry point, and I’m locking down the expected outcomes with focused temp-folder tests before implementing the command.
+
+Replacing 30 lines with 118 lines in 
 
 
+```
+
+```
+
+
+Ran terminal command: python manage.py test processor -v 2
+Completed with input: python manage.py test processor -v 2
+
+Read 
+
+Ran terminal command: .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+Ran terminal command: .\.venv\Scripts\python.exe -c "import django, decouple; print(django.get_version())"
+
+Created 
+
+Created 
+
+Created 
+
+Created 
+
+Ran terminal command: .\.venv\Scripts\python.exe manage.py test processor -v 2
+
+The inbox scan logic is in place and the project tests are green; I’m doing one final smoke check that the Django command itself is registered correctly with the management CLI.
+
+Ran terminal command: .\.venv\Scripts\python.exe manage.py process_inbox --help
+
+## ✅ Inbox processing added
+
+I implemented the single-scan inbox processor and the Django command:
+
+- Single-scan logic in `inbox.py`
+- CLI command in `process_inbox.py`
+- Coverage for the main outcomes in `tests.py`
+
+This follows the design rules for:
+- one-file-at-a-time processing
+- unique output filenames with timestamp/number suffixes
+- moving valid files to processed
+- moving invalid or failed files to error
+- logging each scan and each file result
+- using the existing processing and notification helpers without modifying `services.py` or `notifications.py`
+
+You can run it with:
+
+```bash
+python manage.py process_inbox
+```
+
+---
+
+## Verification
+
+I ran:
+
+```bash
+.\.venv\Scripts\python.exe manage.py test processor -v 2
+```
+
+Fresh result:
+- Test count: 22
+- All tests passed: Yes
+- Evidence: “Ran 22 tests in 0.060s” and “OK”
+
+I also confirmed the command is registered correctly with:
+
+```bash
+.\.venv\Scripts\python.exe manage.py process_inbox --help
+```
+
+which displayed the expected options and help text.
+
+Made changes.
+````
+### Notes
+- Found while reviewing Copilot's response: Copilot only added 3 tests for the file outcomes. Will check which ones.
+- Tested process_inbox with test_input.csv. The output was created with a local timestamp, emails printed, and the input moved to processed/. The inbox was empty afterwards.
+- Running with empty inbox checked 0 files.
+- Tested processing a file with the same name a second time, the second output had a new timestamp, and the second input was saved as test_input_1.csv without overwriting the original.
+- Tested a file with only headers. It moved to error/ and logged the reason. No output or emails were created.
 ---

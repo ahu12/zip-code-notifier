@@ -72,7 +72,7 @@ def read_input_csv(csv_file):
 
         return rows
 
-
+# Make sure the zip code is in a valid format and/or return a normalized version of it.
 def _normalize_zip_code(zip_code):
     """Return a normalized ZIP value plus validity details for a row."""
     value = (zip_code or "").strip()
@@ -85,6 +85,7 @@ def _normalize_zip_code(zip_code):
         return {"cleaned": value[:5], "valid": True, "original": value}
 
     if value.isdigit():
+        # if less than 5 digits, pad to 5 with leading zeros
         if len(value) in {1, 2, 3, 4}:
             logger.warning("ZIP code %s was padded to a five-digit ZIP.", value)
             return {"cleaned": value.zfill(5), "valid": True, "original": value}
@@ -130,6 +131,7 @@ def lookup_zip_code(zip_code):
     url = f"https://api.zippopotam.us/us/{normalized}"
     delays = (1, 2)
 
+    # range 1, 4 for 3 attempts: 1, 2, 3
     for attempt in range(1, 4):
         try:
             response = requests.get(url, timeout=10)
@@ -143,6 +145,7 @@ def lookup_zip_code(zip_code):
                     "status": "NOT_FOUND",
                 }
 
+            # if the response is 429 or 5xx, retry up to 3 times with delays
             if response.status_code == 429 or response.status_code >= 500:
                 if attempt < 3:
                     logger.warning(
@@ -155,6 +158,7 @@ def lookup_zip_code(zip_code):
                 logger.error("ZIP lookup failed for %s after retries.", normalized)
                 return _zip_lookup_error("API_ERROR")
 
+            # If the response is 4xx (other than 404 or 429), log a warning and return an API_ERROR status
             if 400 <= response.status_code < 500:
                 logger.warning(
                     "ZIP lookup returned HTTP %s for %s.",
@@ -163,6 +167,7 @@ def lookup_zip_code(zip_code):
                 )
                 return _zip_lookup_error("API_ERROR")
 
+            # places is a list of dictionaries, containing state and state abbreviation information
             payload = response.json()
             places = payload.get("places") or []
             if not places:

@@ -70,14 +70,14 @@ def process_inbox(inbox_dir=None, output_dir=None, processed_dir=None, error_dir
     processed_dir = Path(processed_dir or settings.PROCESSED_DIR)
     error_dir = Path(error_dir or settings.ERROR_DIR)
 
-    # Ensure configured paths exist so an empty first run and fresh deployments are safe.
+    # Create the folders if they don't exist yet, for example on a fresh clone.
     for directory in (inbox_dir, output_dir, processed_dir, error_dir):
         directory.mkdir(parents=True, exist_ok=True)
 
     logger.info("Starting inbox scan for %s.", inbox_dir)
     file_results = []
 
-    # Stable ordering makes each scan predictable; unrelated files are left untouched.
+    # Process files in name order, and skip anything that isn't a .csv file.
     for file_path in sorted(inbox_dir.iterdir(), key=lambda item: item.name):
         if not file_path.is_file() or file_path.suffix.lower() != ".csv":
             continue
@@ -121,8 +121,8 @@ def process_inbox(inbox_dir=None, output_dir=None, processed_dir=None, error_dir
             _move_file_to_directory(file_path, error_dir)
             file_results.append({"file": file_path.name, "result": "error", "reason": str(exc)})
         except Exception as exc:
-            # Record processing failures per file so later inbox files can still be handled.
-            # If this recovery move itself fails, let the OSError escape for the scheduler to stop.
+            # Handle errors per file, so one bad file doesn't stop the others. 
+            # If the file can't be moved to error/ either, let the error stop the run, so it isn't processed again.
             logger.exception("Unexpected error while processing file %s.", file_path.name)
             _move_file_to_directory(file_path, error_dir)
             file_results.append({"file": file_path.name, "result": "error", "reason": str(exc)})

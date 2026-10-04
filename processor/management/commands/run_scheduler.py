@@ -45,24 +45,24 @@ class Command(BaseCommand):
         interval_seconds = options.get("interval_seconds", 120)
         logger.info("Scheduler starting. Inbox scans every %s seconds.", interval_seconds)
 
-        # A background scheduler lets the command wait interruptibly instead of blocking in APScheduler.
+        # Use a background scheduler so Ctrl + C can stop the command right away
         scheduler = BackgroundScheduler()
         scheduler.add_job(
             _run_inbox_scan,
             "interval",
             seconds=interval_seconds,
             args=[scheduler],
-            # Do not start another scan while a slow scan is still running; coalesce missed ticks.
+            # DO not start a new scan while one is still running. If scans were missed, run just once.
             max_instances=1,
             coalesce=True,
         )
 
         try:
-            # Process existing files immediately; the interval job handles subsequent arrivals.
+            # Scan once right away, then every 2 minutes after the initial scan.
             _run_inbox_scan(scheduler)
             scheduler.start()
             stop_wait = Event()
-            # Polling the event makes Windows Ctrl+C responsive even when the next tick is far away.
+            # Wait in 1-second steps so Ctrl + C works quickly on Windows.
             while scheduler.running:
                 stop_wait.wait(1)
         except KeyboardInterrupt:

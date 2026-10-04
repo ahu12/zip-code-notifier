@@ -54,10 +54,10 @@ def send_result_notifications(results, input_file_name):
     Returns:
         A list of email addresses that failed to send.
     """
-    # Treat differently cased spellings as one mailbox to avoid sending duplicate summaries.
+    # Email addresses are not case-sensitive. bob@example.com and Bob@example.com should be treated as the same email address.
     grouped_results = OrderedDict()
 
-    # Keep the first-seen casing for each email while deduplicating duplicates.
+    # Send to the first address as first written, but group addresses regardless of capitalization.
     for row in results or []:
         email = (row.get("email") or "").strip()
         if not email:

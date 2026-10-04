@@ -8,14 +8,14 @@ class Command(BaseCommand):
     help = "Process a single inbox scan and move files to processed or error folders."
 
     def add_arguments(self, parser):
-        # Allow operators to redirect individual runs without changing project settings.
+        # Optional folder options let one run use different folders without changing .env.
         parser.add_argument("--inbox-dir", default=str(settings.INBOX_DIR), help="Directory containing inbox CSV files.")
         parser.add_argument("--output-dir", default=str(settings.OUTPUT_DIR), help="Directory where output CSV files are written.")
         parser.add_argument("--processed-dir", default=str(settings.PROCESSED_DIR), help="Directory for successfully processed input files.")
         parser.add_argument("--error-dir", default=str(settings.ERROR_DIR), help="Directory for invalid or failed input files.")
 
     def handle(self, *args, **options):
-        # Delegate to the shared pipeline so CLI and scheduled scans use identical file handling.
+        # Use the same process_inbox function as the scheduler, so both handle files the same way.
         results = process_inbox(
             inbox_dir=options["inbox_dir"],
             output_dir=options["output_dir"],
@@ -24,7 +24,7 @@ class Command(BaseCommand):
         )
 
         if not results:
-            # An empty scan is a normal outcome, but make it visible to an interactive caller.
+            # An empty inbox is normal, but print a message so it's clear that the scan ran.
             self.stdout.write(self.style.WARNING("No files found in the inbox."))
             return
 

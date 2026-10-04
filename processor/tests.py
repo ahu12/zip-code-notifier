@@ -485,7 +485,7 @@ class InboxProcessingTests(SimpleTestCase):
 
 
 class SchedulerCommandTests(SimpleTestCase):
-    @mock.patch("processor.management.commands.run_scheduler.BlockingScheduler")
+    @mock.patch("processor.management.commands.run_scheduler.BackgroundScheduler")
     @mock.patch("processor.management.commands.run_scheduler.process_inbox")
     def test_run_scheduler_starts_scan_immediately_and_schedules_interval(self, mock_process_inbox, mock_scheduler_cls):
         mock_scheduler = mock.Mock()
@@ -502,7 +502,7 @@ class SchedulerCommandTests(SimpleTestCase):
         self.assertEqual(mock_scheduler.add_job.call_args.kwargs["seconds"], 120)
         mock_scheduler.start.assert_called_once()
 
-    @mock.patch("processor.management.commands.run_scheduler.BlockingScheduler")
+    @mock.patch("processor.management.commands.run_scheduler.BackgroundScheduler")
     @mock.patch("processor.management.commands.run_scheduler.process_inbox", side_effect=OSError("move failed"))
     def test_run_scheduler_shuts_down_when_scan_move_fails(self, mock_process_inbox, mock_scheduler_cls):
         mock_scheduler = mock.Mock()
@@ -515,3 +515,25 @@ class SchedulerCommandTests(SimpleTestCase):
             Command().handle()
 
         mock_process_inbox.assert_called_once()
+
+    @mock.patch("processor.management.commands.run_scheduler.BackgroundScheduler")
+    @mock.patch("processor.management.commands.run_scheduler.process_inbox")
+    def test_scheduled_scan_move_failure_stops_scheduler(self, mock_process_inbox, mock_scheduler_cls):
+        mock_scheduler = mock.Mock()
+        mock_scheduler.running = True
+        mock_scheduler.start.side_effect = lambda: setattr(mock_scheduler, "running", False)
+        mock_scheduler_cls.return_value = mock_scheduler
+
+        from processor.management.commands.run_scheduler import Command
+
+        Command().handle()
+        scheduled_scan = mock_scheduler.add_job.call_args.args[0]
+        mock_process_inbox.reset_mock()
+        mock_process_inbox.side_effect = OSError("move failed")
+        mock_scheduler.running = True
+
+        with self.assertRaises(OSError):
+            scheduled_scan(mock_scheduler)
+
+        mock_process_inbox.assert_called_once()
+        mock_scheduler.shutdown.assert_called_once_with(wait=False)

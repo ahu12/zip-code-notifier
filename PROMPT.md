@@ -882,3 +882,18 @@ Made changes.
 - Ran python manage.py run_scheduler, a scan ran right away as expected
 - Added a test csv file in the inbox, it was scanned after two minutes
 - When using 'ctrl + c' to stop the scheduler on WIndows, it doesn't stop until the scheduler wakes up for the next scan
+
+---
+
+## Step 3.1 - Fix Scheduler Exit
+
+### Prompt
+```
+On Windows, pressing Ctrl+C only stops the scheduler at the next scheduled scan, which can take up to two minutes. Update it so Ctrl+C stops it within about a second.
+
+Keep the startup scan, the two-minute interval, skipping overlapping runs, and stopping if a file cannot be moved.
+
+Add a test to check that a failed move during a scheduled scan stops the scheduler, without actually waiting for the timer.
+
+Run python manage.py test processor -v 2 and report the test count and whether all tests passed. I’ll test Ctrl+C manually.
+```

@@ -1,6 +1,7 @@
 import logging
+from threading import Event
 
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.management.base import BaseCommand
 
 from processor.inbox import process_inbox
@@ -10,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 def _stop_scheduler(scheduler):
     """Shutdown the scheduler once to prevent a repeated stop loop."""
-    if scheduler is None or getattr(scheduler, "_shutdown_triggered", False):
+    if scheduler is None or getattr(scheduler, "_shutdown_triggered", False) is True:
         return
-    scheduler._shutdown_triggered = True
     if getattr(scheduler, "running", False):
+        scheduler._shutdown_triggered = True
         scheduler.shutdown(wait=False)
 
 
@@ -46,7 +47,7 @@ class Command(BaseCommand):
         interval_seconds = options.get("interval_seconds", 120)
         logger.info("Scheduler starting. Inbox scans every %s seconds.", interval_seconds)
 
-        scheduler = BlockingScheduler()
+        scheduler = BackgroundScheduler()
         scheduler.add_job(
             _run_inbox_scan,
             "interval",
@@ -59,6 +60,9 @@ class Command(BaseCommand):
         try:
             _run_inbox_scan(scheduler)
             scheduler.start()
+            stop_wait = Event()
+            while scheduler.running:
+                stop_wait.wait(1)
         except KeyboardInterrupt:
             logger.info("Scheduler stopped by keyboard interrupt.")
         except OSError:

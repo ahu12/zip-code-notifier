@@ -10,12 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 def _stop_scheduler(scheduler):
-    """Shutdown the scheduler once to prevent a repeated stop loop."""
-    if scheduler is None or getattr(scheduler, "_shutdown_triggered", False) is True:
+    """Stop the scheduler only while it is still running."""
+    if scheduler is None or not getattr(scheduler, "running", False):
         return
-    if getattr(scheduler, "running", False):
-        scheduler._shutdown_triggered = True
-        scheduler.shutdown(wait=False)
+    scheduler.shutdown(wait=False)
 
 
 def _run_inbox_scan(scheduler):

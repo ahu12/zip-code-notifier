@@ -92,7 +92,7 @@ def process_inbox(inbox_dir=None, output_dir=None, processed_dir=None, error_dir
             output_path = _unique_destination_path(output_dir, file_path.name)
             write_results_csv(str(output_path), result_rows)
 
-            # Keep notification outcomes in the same file-level decision as the input-file move.
+            # If any email fails, the input file goes to error instead of processed.
             failed_addresses = send_result_notifications(result_rows, file_path.name)
             if failed_addresses:
                 logger.warning(

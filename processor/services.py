@@ -10,7 +10,6 @@ import logging
 import os
 import re
 import time
-from typing import Any, Iterable
 
 import requests
 from django.core.exceptions import ValidationError
@@ -44,10 +43,8 @@ def read_input_csv(csv_file):
         if not fieldnames:
             raise CSVValidationError("The input CSV is empty or missing a header row.")
 
-        # Header cleanup lets harmless whitespace and a BOM coexist with the required column names.
-        cleaned_fields = [
-            (name or "").strip().lstrip("\ufeff") for name in fieldnames
-        ]
+        # Header cleanup lets harmless whitespace coexist with the required column names.
+        cleaned_fields = [(name or "").strip() for name in fieldnames]
         reader.fieldnames = cleaned_fields
 
         if "zip_code" not in cleaned_fields or "email" not in cleaned_fields:
@@ -57,13 +54,11 @@ def read_input_csv(csv_file):
 
         rows = []
         for row in reader:
-            if row is None:
-                continue
             cleaned_row = {
                 "zip_code": (row.get("zip_code") or "").strip(),
                 "email": (row.get("email") or "").strip(),
             }
-            if not any(value not in (None, "") for value in cleaned_row.values()):
+            if not any(cleaned_row.values()):
                 continue
             rows.append(cleaned_row)
 
@@ -79,26 +74,26 @@ def _normalize_zip_code(zip_code):
     """Return a normalized ZIP value plus validity details for a row."""
     value = (zip_code or "").strip()
     if value == "":
-        return {"cleaned": "", "valid": False, "original": value}
+        return {"cleaned": "", "valid": False}
     if " " in value:
-        return {"cleaned": value, "valid": False, "original": value}
+        return {"cleaned": value, "valid": False}
 
     if re.fullmatch(r"\d{5}-\d{4}", value):
         # The lookup service accepts the five-digit base ZIP, so keep that canonical value for lookup.
-        return {"cleaned": value[:5], "valid": True, "original": value}
+        return {"cleaned": value[:5], "valid": True}
 
     if value.isdigit():
-        # if less than 5 digits, pad to 5 with leading zeros
-        if len(value) in {1, 2, 3, 4}:
+        # If less than five digits, pad to five with leading zeros.
+        if 1 <= len(value) <= 4:
             logger.warning("ZIP code %s was padded to a five-digit ZIP.", value)
-            return {"cleaned": value.zfill(5), "valid": True, "original": value}
+            return {"cleaned": value.zfill(5), "valid": True}
         if len(value) == 5:
-            return {"cleaned": value, "valid": True, "original": value}
+            return {"cleaned": value, "valid": True}
 
-    return {"cleaned": value, "valid": False, "original": value}
+    return {"cleaned": value, "valid": False}
 
 
-def _is_valid_email(email):
+def is_valid_email(email):
     """Validate an email address using Django's email validator."""
     if email is None:
         return False
@@ -130,7 +125,7 @@ def lookup_zip_code(zip_code):
     Returns:
         A dictionary containing the ZIP, state, abbreviation, and result status.
     """
-    normalized = str(zip_code or "").strip()
+    normalized = (zip_code or "").strip()
     url = f"https://api.zippopotam.us/us/{normalized}"
     delays = (1, 2)
 
@@ -150,6 +145,7 @@ def lookup_zip_code(zip_code):
                 }
 
             # Rate limits and server failures are transient, unlike most client errors, so retry them.
+            # This must come before the 4xx check below, since 429 is also a 4xx.
             if response.status_code == 429 or response.status_code >= 500:
                 if attempt < 3:
                     logger.warning(
@@ -247,14 +243,19 @@ def process_csv_rows(rows):
         normalized = _normalize_zip_code(original_zip)
         zip_code = normalized["cleaned"]
         zip_valid = normalized["valid"]
-        email_valid = _is_valid_email(email)
+        email_valid = is_valid_email(email)
 
         if zip_valid:
             if zip_code not in cache:
                 cache[zip_code] = lookup_zip_code(zip_code)
             lookup_result = cache[zip_code]
         else:
-            lookup_result = {"zip_code": original_zip, "state": "", "state_abbreviation": "", "status": "INVALID_ZIP"}
+            lookup_result = {
+                "zip_code": original_zip,
+                "state": "",
+                "state_abbreviation": "",
+                "status": "INVALID_ZIP",
+            }
 
         # ZIP failures take precedence so an invalid/unknown ZIP is not obscured by an email error.
         if not zip_valid:
@@ -265,14 +266,10 @@ def process_csv_rows(rows):
             status = lookup_result["status"]
             state = ""
             state_abbreviation = ""
-        elif email_valid:
-            status = "OK"
-            state = lookup_result.get("state", "")
-            state_abbreviation = lookup_result.get("state_abbreviation", "")
         else:
-            status = "INVALID_EMAIL"
             state = lookup_result.get("state", "")
             state_abbreviation = lookup_result.get("state_abbreviation", "")
+            status = "OK" if email_valid else "INVALID_EMAIL"
 
         results.append(
             {

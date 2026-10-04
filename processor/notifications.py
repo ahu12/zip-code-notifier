@@ -9,9 +9,9 @@ import logging
 from collections import OrderedDict
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
-from django.core.validators import validate_email
+
+from processor.services import is_valid_email
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +63,7 @@ def send_result_notifications(results, input_file_name):
         if not email:
             continue
 
-        try:
-            validate_email(email)
-        except ValidationError:
+        if not is_valid_email(email):
             logger.info("Skipping invalid email address %s for file %s.", email, input_file_name)
             continue
 

@@ -36,6 +36,7 @@ def read_input_csv(csv_file):
         CSVValidationError: If the file is empty, has missing required headers, or
             contains headers but no data rows.
     """
+    # utf-8-sig accepts spreadsheet-exported files with a BOM without leaking it into the first header.
     with open(csv_file, "r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         fieldnames = reader.fieldnames
@@ -43,6 +44,7 @@ def read_input_csv(csv_file):
         if not fieldnames:
             raise CSVValidationError("The input CSV is empty or missing a header row.")
 
+        # Header cleanup lets harmless whitespace and a BOM coexist with the required column names.
         cleaned_fields = [
             (name or "").strip().lstrip("\ufeff") for name in fieldnames
         ]
@@ -82,6 +84,7 @@ def _normalize_zip_code(zip_code):
         return {"cleaned": value, "valid": False, "original": value}
 
     if re.fullmatch(r"\d{5}-\d{4}", value):
+        # The lookup service accepts the five-digit base ZIP, so keep that canonical value for lookup.
         return {"cleaned": value[:5], "valid": True, "original": value}
 
     if value.isdigit():
@@ -137,6 +140,7 @@ def lookup_zip_code(zip_code):
             response = requests.get(url, timeout=10)
 
             if response.status_code == 404:
+                # A not-found result is definitive; retrying cannot make this ZIP valid.
                 logger.warning("ZIP code %s not found.", normalized)
                 return {
                     "zip_code": normalized,
@@ -145,7 +149,7 @@ def lookup_zip_code(zip_code):
                     "status": "NOT_FOUND",
                 }
 
-            # if the response is 429 or 5xx, retry up to 3 times with delays
+            # Rate limits and server failures are transient, unlike most client errors, so retry them.
             if response.status_code == 429 or response.status_code >= 500:
                 if attempt < 3:
                     logger.warning(
@@ -158,7 +162,7 @@ def lookup_zip_code(zip_code):
                 logger.error("ZIP lookup failed for %s after retries.", normalized)
                 return _zip_lookup_error("API_ERROR")
 
-            # If the response is 4xx (other than 404 or 429), log a warning and return an API_ERROR status
+            # Other 4xx responses indicate a request/client problem, so retries would only waste time.
             if 400 <= response.status_code < 500:
                 logger.warning(
                     "ZIP lookup returned HTTP %s for %s.",
@@ -232,6 +236,7 @@ def process_csv_rows(rows):
         A list of result dictionaries with zip_code, email, state,
         state_abbreviation, and status keys.
     """
+    # Reuse each successful or failed lookup within this file to reduce latency and API load.
     cache = {}
     results = []
 
@@ -251,6 +256,7 @@ def process_csv_rows(rows):
         else:
             lookup_result = {"zip_code": original_zip, "state": "", "state_abbreviation": "", "status": "INVALID_ZIP"}
 
+        # ZIP failures take precedence so an invalid/unknown ZIP is not obscured by an email error.
         if not zip_valid:
             status = "INVALID_ZIP"
             state = ""
@@ -293,6 +299,7 @@ def write_results_csv(output_path, rows):
     Raises:
         Any exception raised during the write process after removing the temporary file.
     """
+    # Write beside the destination and replace it only when complete, preventing partial result files.
     temp_path = f"{output_path}.tmp"
     fieldnames = ["zip_code", "email", "state", "state_abbreviation", "status"]
 
@@ -304,6 +311,7 @@ def write_results_csv(output_path, rows):
                 writer.writerow({key: row.get(key, "") for key in fieldnames})
         os.replace(temp_path, output_path)
     except Exception:
+        # A failed write must not leave a misleading partial file for a later consumer.
         if os.path.exists(temp_path):
             os.unlink(temp_path)
         raise

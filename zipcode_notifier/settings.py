@@ -22,6 +22,7 @@ def resolve_path(value):
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Keep all data paths configurable while resolving relative values consistently from the project root.
 DATA_DIR = BASE_DIR / 'data'
 INBOX_DIR = resolve_path(config('INBOX_DIR', default=str(DATA_DIR / 'inbox')))
 OUTPUT_DIR = resolve_path(config('OUTPUT_DIR', default=str(DATA_DIR / 'output')))
@@ -149,6 +150,7 @@ MAILERS = {
     },
 }
 
+# Only load SMTP connection details when SMTP is selected; the console backend needs no credentials.
 if MAILERS['default']['BACKEND'] == 'django.core.mail.backends.smtp.EmailBackend':
     MAILERS['default']['OPTIONS'] = {
         'host': config('EMAIL_HOST', default='localhost'),
@@ -161,6 +163,7 @@ if MAILERS['default']['BACKEND'] == 'django.core.mail.backends.smtp.EmailBackend
 
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='zip-notifier@example.com')
 
+# Send logs to both the console and a persistent file so command output and run history are available.
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

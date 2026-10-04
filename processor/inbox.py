@@ -70,12 +70,14 @@ def process_inbox(inbox_dir=None, output_dir=None, processed_dir=None, error_dir
     processed_dir = Path(processed_dir or settings.PROCESSED_DIR)
     error_dir = Path(error_dir or settings.ERROR_DIR)
 
+    # Ensure configured paths exist so an empty first run and fresh deployments are safe.
     for directory in (inbox_dir, output_dir, processed_dir, error_dir):
         directory.mkdir(parents=True, exist_ok=True)
 
     logger.info("Starting inbox scan for %s.", inbox_dir)
     file_results = []
 
+    # Stable ordering makes each scan predictable; unrelated files are left untouched.
     for file_path in sorted(inbox_dir.iterdir(), key=lambda item: item.name):
         if not file_path.is_file() or file_path.suffix.lower() != ".csv":
             continue
@@ -86,9 +88,11 @@ def process_inbox(inbox_dir=None, output_dir=None, processed_dir=None, error_dir
         try:
             rows = read_input_csv(str(file_path))
             result_rows = process_csv_rows(rows)
+            # Preserve earlier outputs when the same input filename is submitted again.
             output_path = _unique_destination_path(output_dir, file_path.name)
             write_results_csv(str(output_path), result_rows)
 
+            # Keep notification outcomes in the same file-level decision as the input-file move.
             failed_addresses = send_result_notifications(result_rows, file_path.name)
             if failed_addresses:
                 logger.warning(
@@ -117,6 +121,8 @@ def process_inbox(inbox_dir=None, output_dir=None, processed_dir=None, error_dir
             _move_file_to_directory(file_path, error_dir)
             file_results.append({"file": file_path.name, "result": "error", "reason": str(exc)})
         except Exception as exc:
+            # Record processing failures per file so later inbox files can still be handled.
+            # If this recovery move itself fails, let the OSError escape for the scheduler to stop.
             logger.exception("Unexpected error while processing file %s.", file_path.name)
             _move_file_to_directory(file_path, error_dir)
             file_results.append({"file": file_path.name, "result": "error", "reason": str(exc)})

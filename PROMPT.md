@@ -995,3 +995,17 @@ Made changes.
 - Tested, `ctrl + c` now stops the scheduler within a second in Windows
 - Scheduled scans still run every 2 minutes
 - Tested sending real emails with gmail SMTP configured in .env. Sent test emails to my own email. All emails were delivered.
+
+---
+
+## Step 4 - Add comments
+
+### Prompt
+```
+Add comments to processor/services.py, processor/notifications.py, processor/inbox.py, zipcode_notifier/settings.py (that we added), and the two management commands (process_inbox.py and run_scheduler.py). Only add comments; do not change the code or remove the comments I already added.
+
+Explain what each section does if not already explained.
+Explain why the important parts are needed instead of describing what each line does. Do not comment obvious lines.
+
+Run python manage.py test processor -v 2 and confirm all 29 tests still pass. Report the results.
+```

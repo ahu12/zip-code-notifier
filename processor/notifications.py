@@ -54,6 +54,7 @@ def send_result_notifications(results, input_file_name):
     Returns:
         A list of email addresses that failed to send.
     """
+    # Treat differently cased spellings as one mailbox to avoid sending duplicate summaries.
     grouped_results = OrderedDict()
 
     # Keep the first-seen casing for each email while deduplicating duplicates.
@@ -79,6 +80,7 @@ def send_result_notifications(results, input_file_name):
     failed_addresses = []
     sender = getattr(settings, "DEFAULT_FROM_EMAIL", "zip-notifier@example.com")
 
+    # Continue through every recipient even if delivery to one address fails.
     for recipient_group in grouped_results.values():
         recipient_email = recipient_group["email"]
         message = _build_email_body(input_file_name, recipient_group["rows"])

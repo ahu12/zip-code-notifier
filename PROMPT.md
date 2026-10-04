@@ -1222,3 +1222,78 @@ Do not change any behavior, the inbox.py helpers, settings.py, the Django defaul
 
 Run python manage.py test processor -v 2 and confirm all 29 tests pass. Report the results and summarize the changes.
 ```
+
+### Copilot response
+````
+I’ve narrowed the requested cleanup to the exact hot spots in the service layer and scheduler, and I’m applying the minimal refactor that keeps behavior intact before running the targeted Django tests.
+
+Replacing 102 lines with 94 lines in , , 
+
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+
+Read , lines 1 to 260
+
+Read , lines 261 to 315
+
+Read 
+
+The refactor is in place; I’m running the project’s processor test suite now to confirm the cleanup kept the original behavior intact.
+
+Ran terminal command: Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned; & "C:\Users\Andrew\Desktop\Projects\InterviewAssignment\.venv\Scripts\Activate.ps1"; python manage.py test processor -v 2
+
+Read 
+
+## ✅ Result
+
+I ran:
+
+`python `manage.py` test processor -v 2`
+
+and the suite passed:
+
+- 29 tests ran
+- 29 passed
+- Result: OK
+
+---
+
+## Changes made
+
+- In `services.py`:
+  - simplified the status logic in `process_csv_rows` by removing the redundant invalid-ZIP placeholder dictionary and setting `state` and `state_abbreviation` once in the common path
+  - reused the existing email validator via `_is_valid_email`
+  - removed the unused imports `Any` and `Iterable`
+  - removed the unnecessary `if row is None` check
+  - removed the extra BOM cleanup with `.lstrip("\ufeff")`
+  - removed the unused `"original"` key from ZIP-normalization results
+  - simplified the blank-row check
+  - simplified the short-ZIP length check from a set to a range
+  - removed the extra `str(...).strip()` in `lookup_zip_code`
+
+- In `notifications.py`:
+  - replaced the duplicate email validation logic with the shared `_is_valid_email` helper from `services.py`
+
+- In `run_scheduler.py`:
+  - switched the guard to `scheduler.running` instead of the custom `_shutdown_triggered` flag
+  - this keeps the intended behavior of stopping only when the scheduler is active, and avoids the extra state flag without altering the control flow in practice
+
+I did not change behavior outside these requested cleanups, and I did not touch `inbox.py`, `settings.py`, the default Django files, or the tests.
+
+Made changes.
+````
+
+### Notes
+- Copilot didn't remove the underscore from function _is_valid_email, manually renamed it and verified it updated in notifications.
+---

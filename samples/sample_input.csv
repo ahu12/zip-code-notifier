@@ -1,0 +1,9 @@
+zip_code,email
+02108,alice@example.com
+2108,not-an-email
+02108-1234, bob@example.com 
+123-4567,carol@example.com
+12 345,dave@example.com
+00000,eric@example.com
+90210,frank@example.com
+90210,FRANK@example.com

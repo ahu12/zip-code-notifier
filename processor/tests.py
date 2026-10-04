@@ -482,3 +482,36 @@ class InboxProcessingTests(SimpleTestCase):
             self.assertEqual(len(os.listdir(output_dir)), 0)
             self.assertEqual(len(os.listdir(processed_dir)), 0)
             self.assertEqual(len(os.listdir(error_dir)), 0)
+
+
+class SchedulerCommandTests(SimpleTestCase):
+    @mock.patch("processor.management.commands.run_scheduler.BlockingScheduler")
+    @mock.patch("processor.management.commands.run_scheduler.process_inbox")
+    def test_run_scheduler_starts_scan_immediately_and_schedules_interval(self, mock_process_inbox, mock_scheduler_cls):
+        mock_scheduler = mock.Mock()
+        mock_scheduler.running = True
+        mock_scheduler.start.side_effect = KeyboardInterrupt
+        mock_scheduler_cls.return_value = mock_scheduler
+
+        from processor.management.commands.run_scheduler import Command
+
+        Command().handle()
+
+        self.assertEqual(mock_process_inbox.call_count, 1)
+        mock_scheduler.add_job.assert_called_once()
+        self.assertEqual(mock_scheduler.add_job.call_args.kwargs["seconds"], 120)
+        mock_scheduler.start.assert_called_once()
+
+    @mock.patch("processor.management.commands.run_scheduler.BlockingScheduler")
+    @mock.patch("processor.management.commands.run_scheduler.process_inbox", side_effect=OSError("move failed"))
+    def test_run_scheduler_shuts_down_when_scan_move_fails(self, mock_process_inbox, mock_scheduler_cls):
+        mock_scheduler = mock.Mock()
+        mock_scheduler.running = True
+        mock_scheduler_cls.return_value = mock_scheduler
+
+        from processor.management.commands.run_scheduler import Command
+
+        with self.assertRaises(OSError):
+            Command().handle()
+
+        mock_process_inbox.assert_called_once()

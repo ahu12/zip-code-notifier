@@ -6,6 +6,7 @@ This application will read a CSV containing ZIP codes and email addresses, use Z
 
 Flow: input CSV → read and validate → look up ZIP codes → write output → send emails → move input file.
 
+Note: This is the design written before implementation. See [Changes During Implementation](#changes-during-implementation) at the end for what changed during the build.
 
 ## Requirements and Design Choices
 
@@ -37,7 +38,7 @@ Flow: input CSV → read and validate → look up ZIP codes → write output →
 
 - Require the headers `zip_code` and `email`. Remove surrounding spaces from headers and accept UTF-8 CSVs, including files saved with a BOM by Excel.
 - An empty file, a file with missing headers, or a file with headers but no data goes to the error folder.
-- Keep ZIP codes as text and remove surrounding spaces. Accept five digits using 0–9. For ZIP+4, require the exact format `12345-6789` and use the first five digits.
+- Keep ZIP codes as text and remove surrounding spaces. Accept five digits 0-9. For ZIP+4, require the exact format `12345-6789` and use the first five digits.
 - Pad ZIPs containing one to four digits with leading zeros and log a warning. This handles a common spreadsheet issue, but cannot confirm which ZIP the user intended. Empty ZIPs, internal spaces, letters, and other formats are invalid.
 - Remove surrounding spaces from email addresses and check their format using Django. Valid emails look like name@example.com
 - Mark invalid rows and continue processing. If the ZIP is valid but the email is invalid, still look up the ZIP so its state can appear in the output.
@@ -93,3 +94,15 @@ Rules:
 
 - Keep the Django secret key, email settings, sender address, and folder paths in `.env`. Provide local defaults where credentials are not needed.
 - Include `.env.example` with placeholders. Keep secrets, generated files, logs, and the virtual environment out of Git.
+
+## Changes During Implementation
+
+- Email configuration: Switched to `MAILERS` and only include SMTP options when SMTP is selected. The old settings caused deprecation warnings, and SMTP options caused console emails to fail. Found through the warnings check and manual console testing.
+- Gmail sender: Documented that the sender address should match the Gmail login. During the real email test, Gmail replaced the configured From address with the logged-in account.
+- Scheduler: Switched to a background scheduler with a one-second wait loop so Ctrl+C responds quickly on Windows. Manual testing showed the blocking scheduler could take up to two minutes to stop.
+- Failed moves: Keep the completed output if moving the input fails, as required by the design. The first version deleted it. Found while checking the code and confirmed with a simulated failure.
+- CSV files only: Leave non-CSV files in the inbox instead of moving them to `error/`. Found while checking the code.
+- Missing files: Let missing input files raise `FileNotFoundError` instead of `CSVValidationError` so they are handled separately from invalid CSVs. Found during manual testing.
+- File naming: Keep the original input name and add a number if needed in `processed/` and `error/`. This keeps files recognizable without overwriting them. Timestamps are only used for output files.
+- Email validation: Have CSV processing and notifications share `is_valid_email` so both use the same validation rules.
+- Scan interval: Added `--interval-seconds` for faster demos and testing. The default stays at 120 seconds.

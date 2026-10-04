@@ -354,3 +354,131 @@ class InboxProcessingTests(SimpleTestCase):
             self.assertEqual(len(os.listdir(processed_dir)), 0)
             mock_lookup.assert_not_called()
             mock_notifications.assert_not_called()
+
+    @mock.patch("processor.inbox.send_result_notifications")
+    @mock.patch("processor.inbox.write_results_csv", side_effect=OSError("disk full"))
+    @mock.patch("processor.services.lookup_zip_code")
+    def test_process_inbox_writing_output_failure_sends_no_emails_and_moves_file_to_error(
+        self, mock_lookup, mock_write_output, mock_notifications
+    ):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbox_dir = os.path.join(tmpdir, "inbox")
+            output_dir = os.path.join(tmpdir, "output")
+            processed_dir = os.path.join(tmpdir, "processed")
+            error_dir = os.path.join(tmpdir, "error")
+            for directory in (inbox_dir, output_dir, processed_dir, error_dir):
+                os.makedirs(directory, exist_ok=True)
+
+            input_path = os.path.join(inbox_dir, "write_fail.csv")
+            with open(input_path, "w", encoding="utf-8", newline="") as handle:
+                handle.write("zip_code,email\n12345,user@example.com\n")
+
+            mock_lookup.return_value = {
+                "zip_code": "12345",
+                "state": "California",
+                "state_abbreviation": "CA",
+                "status": "OK",
+            }
+
+            process_inbox(inbox_dir, output_dir, processed_dir, error_dir)
+
+            self.assertFalse(os.path.exists(input_path))
+            self.assertEqual(len(os.listdir(error_dir)), 1)
+            self.assertEqual(len(os.listdir(output_dir)), 0)
+            self.assertEqual(len(os.listdir(processed_dir)), 0)
+            mock_notifications.assert_not_called()
+
+    @mock.patch("processor.inbox.send_result_notifications", return_value=[])
+    @mock.patch("processor.inbox.read_input_csv")
+    @mock.patch("processor.services.lookup_zip_code")
+    def test_process_inbox_continues_after_unexpected_error_on_one_file(
+        self, mock_lookup, mock_read_input_csv, mock_notifications
+    ):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbox_dir = os.path.join(tmpdir, "inbox")
+            output_dir = os.path.join(tmpdir, "output")
+            processed_dir = os.path.join(tmpdir, "processed")
+            error_dir = os.path.join(tmpdir, "error")
+            for directory in (inbox_dir, output_dir, processed_dir, error_dir):
+                os.makedirs(directory, exist_ok=True)
+
+            bad_path = os.path.join(inbox_dir, "bad.csv")
+            good_path = os.path.join(inbox_dir, "good.csv")
+            for path, content in (
+                (bad_path, "zip_code,email\n12345,user@example.com\n"),
+                (good_path, "zip_code,email\n54321,other@example.com\n"),
+            ):
+                with open(path, "w", encoding="utf-8", newline="") as handle:
+                    handle.write(content)
+
+            mock_read_input_csv.side_effect = [RuntimeError("unexpected failure"), [{"zip_code": "54321", "email": "other@example.com"}]]
+            mock_lookup.return_value = {
+                "zip_code": "54321",
+                "state": "Texas",
+                "state_abbreviation": "TX",
+                "status": "OK",
+            }
+
+            process_inbox(inbox_dir, output_dir, processed_dir, error_dir)
+
+            self.assertEqual(len(os.listdir(error_dir)), 1)
+            self.assertEqual(len(os.listdir(processed_dir)), 1)
+            self.assertEqual(len(os.listdir(output_dir)), 1)
+            self.assertTrue(mock_notifications.called)
+
+    @mock.patch("processor.inbox.send_result_notifications", return_value=[])
+    @mock.patch("processor.inbox._move_file_to_directory", side_effect=OSError("move failed"))
+    @mock.patch("processor.services.lookup_zip_code")
+    def test_process_inbox_stops_when_moving_file_fails_and_keeps_output_and_input(
+        self, mock_lookup, mock_move, mock_notifications
+    ):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbox_dir = os.path.join(tmpdir, "inbox")
+            output_dir = os.path.join(tmpdir, "output")
+            processed_dir = os.path.join(tmpdir, "processed")
+            error_dir = os.path.join(tmpdir, "error")
+            for directory in (inbox_dir, output_dir, processed_dir, error_dir):
+                os.makedirs(directory, exist_ok=True)
+
+            input_path = os.path.join(inbox_dir, "move_fail.csv")
+            with open(input_path, "w", encoding="utf-8", newline="") as handle:
+                handle.write("zip_code,email\n12345,user@example.com\n")
+
+            mock_lookup.return_value = {
+                "zip_code": "12345",
+                "state": "California",
+                "state_abbreviation": "CA",
+                "status": "OK",
+            }
+
+            with self.assertRaises(OSError):
+                process_inbox(inbox_dir, output_dir, processed_dir, error_dir)
+
+            self.assertTrue(os.path.exists(input_path))
+            self.assertEqual(len(os.listdir(inbox_dir)), 1)
+            self.assertEqual(len(os.listdir(output_dir)), 1)
+            self.assertEqual(len(os.listdir(processed_dir)), 0)
+            self.assertEqual(len(os.listdir(error_dir)), 0)
+            mock_notifications.assert_called_once()
+
+    def test_process_inbox_ignores_non_csv_files(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            inbox_dir = os.path.join(tmpdir, "inbox")
+            output_dir = os.path.join(tmpdir, "output")
+            processed_dir = os.path.join(tmpdir, "processed")
+            error_dir = os.path.join(tmpdir, "error")
+            for directory in (inbox_dir, output_dir, processed_dir, error_dir):
+                os.makedirs(directory, exist_ok=True)
+
+            text_path = os.path.join(inbox_dir, "notes.txt")
+            with open(text_path, "w", encoding="utf-8") as handle:
+                handle.write("ignore me")
+
+            results = process_inbox(inbox_dir, output_dir, processed_dir, error_dir)
+
+            self.assertEqual(results, [])
+            self.assertTrue(os.path.exists(text_path))
+            self.assertEqual(os.listdir(inbox_dir), ["notes.txt"])
+            self.assertEqual(len(os.listdir(output_dir)), 0)
+            self.assertEqual(len(os.listdir(processed_dir)), 0)
+            self.assertEqual(len(os.listdir(error_dir)), 0)

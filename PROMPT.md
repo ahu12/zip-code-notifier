@@ -642,4 +642,27 @@ Made changes.
 - Running with empty inbox checked 0 files.
 - Tested processing a file with the same name a second time, the second output had a new timestamp, and the second input was saved as test_input_1.csv without overwriting the original.
 - Tested a file with only headers. It moved to error/ and logged the reason. No output or emails were created.
+- Tested a file with a differnt extension. It still made it to processed/
+- Tested a file and locked it with Excel, the output file got deleted
+- Update: Removed the if statement for output_path.unlink() to stop deleting the output
+- Update: Added file_path.suffix.lower() != ".csv": to check for .csv as well
 ---
+
+## Step 2b - Add missing tests
+
+### Prompt
+```
+Add tests for the following:
+- If writing the output fails, no emails are sent and the input file moves to error/.
+- If an unexpected error occurs on one file, the next file still gets processed.
+- If moving a file fails, processing stops, the output file is kept, and the input file stays in the inbox
+- A non-CSV file in the inbox is ignored and left in the inbox.
+
+Do not change the behavior in inbox.py.
+
+Run python manage.py test processor -v 2 and report the test count and whether all tests passed.
+```
+
+### Copilot response
+````
+````

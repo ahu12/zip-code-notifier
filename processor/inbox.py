@@ -77,7 +77,7 @@ def process_inbox(inbox_dir=None, output_dir=None, processed_dir=None, error_dir
     file_results = []
 
     for file_path in sorted(inbox_dir.iterdir(), key=lambda item: item.name):
-        if not file_path.is_file():
+        if not file_path.is_file() or file_path.suffix.lower() != ".csv":
             continue
 
         logger.info("Scanning file %s.", file_path.name)
@@ -114,14 +114,10 @@ def process_inbox(inbox_dir=None, output_dir=None, processed_dir=None, error_dir
             logger.info("File %s processed successfully and moved to %s.", file_path.name, moved_path)
         except CSVValidationError as exc:
             logger.error("Invalid input file %s: %s", file_path.name, exc)
-            if output_path and output_path.exists():
-                output_path.unlink()
             _move_file_to_directory(file_path, error_dir)
             file_results.append({"file": file_path.name, "result": "error", "reason": str(exc)})
         except Exception as exc:
             logger.exception("Unexpected error while processing file %s.", file_path.name)
-            if output_path and output_path.exists():
-                output_path.unlink()
             _move_file_to_directory(file_path, error_dir)
             file_results.append({"file": file_path.name, "result": "error", "reason": str(exc)})
 

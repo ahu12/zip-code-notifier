@@ -1,6 +1,6 @@
 # Zip Code Notifier
 
-Python/Django program that takes a list of ZIP codes and email addresses from a CSV file, gets the state and state abbreviation from Zipppotam.us API, saves the results with a status to an output CSV, and sends an email notification to the supplied email addresses.
+Python/Django program that takes a list of ZIP codes and email addresses from a CSV file, gets the state and state abbreviation from Zippopotam.us API, saves the results with a status to an output CSV, and sends an email notification to the supplied email addresses.
 
 ## What it Does
 * Scans an inbox folder for CSV files
@@ -13,7 +13,7 @@ Python/Django program that takes a list of ZIP codes and email addresses from a 
 
 * Python 3.12 or newer. macOS: check with `python3 --version`
 * Git
-* A Gmail account with an app password (if you want to send real emails using gmail SMTP)
+* A Gmail account with an app password (if you want to send real emails using Gmail SMTP)
 
 ## Setup
 
@@ -21,6 +21,7 @@ Python/Django program that takes a list of ZIP codes and email addresses from a 
 
 ```
 git clone https://github.com/ahu12/zip-code-notifier
+cd zip-code-notifier
 ```
 
 ### 2. Create a Virtual Environment
@@ -29,11 +30,14 @@ Windows:
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
-If activation is blocked: Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+If activation is blocked: 
+```
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+```
 
 macOS/Linux:
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
@@ -57,9 +61,9 @@ cp .env.example .env
 
 ### 5. Generate the Django Secret Key
 
-venv must be activate
+Verify the virtual environment is activated.
 
-Copy/paste the generated key in .env with no quotes or spaces: SECRET_KEY=paste_the_generated_key_here
+Copy/paste the generated key in .env with no quotes or spaces: `SECRET_KEY=paste_the_generated_key_here`
 ```
 python -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
@@ -278,6 +282,7 @@ python manage.py test processor -v 2
 ```
 
 * A successful run shows 29 tests, all `ok`, ending with `OK`.
+* ERROR lines and tracebacks in the output are expected: some tests simulate failures on purpose.
 * The tests mock the ZIP API and email sending - they run without network access and never send real emails.
 * The tests check the logic and error handling. The [Verification](#verification) steps check the real API. The Gmail setup in [Configuration](#configuration) was used to check real email delivery.
 

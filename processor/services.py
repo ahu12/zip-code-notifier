@@ -232,7 +232,7 @@ def process_csv_rows(rows):
         A list of result dictionaries with zip_code, email, state,
         state_abbreviation, and status keys.
     """
-    # Loop up each ZIP once per file, and reuse the result (even failures) to avoid extra API calls.
+    # Look up each ZIP once per file, and reuse the result (even failures) to avoid extra API calls.
     cache = {}
     results = []
 
@@ -249,23 +249,15 @@ def process_csv_rows(rows):
             if zip_code not in cache:
                 cache[zip_code] = lookup_zip_code(zip_code)
             lookup_result = cache[zip_code]
-        else:
-            lookup_result = {
-                "zip_code": original_zip,
-                "state": "",
-                "state_abbreviation": "",
-                "status": "INVALID_ZIP",
-            }
+
+        state = ""
+        state_abbreviation = ""
 
         # ZIP failures take priority over email failures in the status.
         if not zip_valid:
             status = "INVALID_ZIP"
-            state = ""
-            state_abbreviation = ""
         elif lookup_result.get("status") in {"NOT_FOUND", "API_ERROR"}:
             status = lookup_result["status"]
-            state = ""
-            state_abbreviation = ""
         else:
             state = lookup_result.get("state", "")
             state_abbreviation = lookup_result.get("state_abbreviation", "")

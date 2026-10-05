@@ -52,7 +52,7 @@ class Command(BaseCommand):
             "interval",
             seconds=interval_seconds,
             args=[scheduler],
-            # DO not start a new scan while one is still running. If scans were missed, run just once.
+            # Do not start a new scan while one is still running. If scans were missed, run just once.
             max_instances=1,
             coalesce=True,
         )

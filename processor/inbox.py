@@ -83,7 +83,6 @@ def process_inbox(inbox_dir=None, output_dir=None, processed_dir=None, error_dir
             continue
 
         logger.info("Scanning file %s.", file_path.name)
-        output_path = None
 
         try:
             rows = read_input_csv(str(file_path))

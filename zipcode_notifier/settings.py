@@ -22,7 +22,7 @@ def resolve_path(value):
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-# Folder paths can be set in .emv. Relative paths start from the project folder.
+# Folder paths can be set in .env. Relative paths start from the project folder.
 DATA_DIR = BASE_DIR / 'data'
 INBOX_DIR = resolve_path(config('INBOX_DIR', default=str(DATA_DIR / 'inbox')))
 OUTPUT_DIR = resolve_path(config('OUTPUT_DIR', default=str(DATA_DIR / 'output')))

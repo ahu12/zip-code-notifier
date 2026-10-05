@@ -1,6 +1,10 @@
 # Copilot Prompt Log
 Tool: GitHub Copilot Chat (Agent mode) in VSCode
 
+I wrote DESIGN.md before starting the code and used it as the reference for the prompts. I built the project in steps: processing, email and settings, inbox handling, scheduler, then comments and cleanup. The .1, .2, and so forth add additional changes or fixes for their step.
+
+Each prompt that changes code limits the changes to that step and asks Copilot to run the tests. I reviewed the code, ran the tests in my own virtual environment, and tested the application manually. The Notes sections record the results and any issues found.
+
 ## Step 1 - Processing
 
 ### Prompt
@@ -407,7 +411,7 @@ Made changes.
 
 ### Notes
 - Manual test of send_result_notifications in the shell resulted in every email failed with InvalidMailer
-- Found while reviewing the code, the MAILERS option names were uin the wrong case, and the console backend doesn't accept SMTP options at all.
+- Found while reviewing the code, the MAILERS option names were in the wrong case, and the console backend doesn't accept SMTP options at all.
 ---
 
 ## Step 2.2 - Fix MAILERS names
@@ -642,7 +646,7 @@ Made changes.
 - Running with empty inbox checked 0 files.
 - Tested processing a file with the same name a second time, the second output had a new timestamp, and the second input was saved as test_input_1.csv without overwriting the original.
 - Tested a file with only headers. It moved to error/ and logged the reason. No output or emails were created.
-- Tested a file with a differnt extension. It still made it to processed/
+- Tested a file with a different extension. It still made it to processed/
 - Tested a file and locked it with Excel, the output file got deleted
 - Update: Removed the if statement for output_path.unlink() to stop deleting the output
 - Update: Added file_path.suffix.lower() != ".csv": to check for .csv as well
@@ -714,6 +718,10 @@ Made changes.
 ````
 
 ### Notes
+- Follow-up to the Step 2.3 note: Copilot added the 4 missing tests (output write failure, an unexpected error on one file, a failed move, and non-CSV files).
+- Confirmed that all tests passed, 26/26
+
+---
 
 ## Step 3 - Add scheduler
 
@@ -1406,5 +1414,5 @@ Made changes.
 - Found while reviewing the 4.3 diff: Copilot made a change to the header-cleanup comment in `read_input_csv` despite being told not to, and did not report this in its summary. Reverted the change.
 - The Step 4.2 items are now done: the unused invalid-ZIP dictionary is removed, and state/state_abbreviation are set once.
 - Unused `output_path = None` was removed.
-- Typos were fixed
+- Typos were fixed.
 - Ran the tests in my venv, 29/29 passed.

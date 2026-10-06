@@ -328,6 +328,14 @@ zip-code-notifier/
 └── requirements.txt                  # Python packages and versions to install
 ```
 
+## Design Decisions
+* **State tracking:** I used folders to track which files were processed or had errors. This kept setup and testing simpler without needing a database. The trade-off is that retrying a file or restarting after a crash can send duplicate emails, because there is no record of what was already sent. Tracking processed files and sent emails is the next step I'd take.
+* **Scheduler:** I used APScheduler because there is only one job running every two minutes, and it works on Windows. Celery would add a message broker and worker processes that this assignment didn't need. `process_inbox()` could run as a Celery task without changes.
+* **Notifications:** I group results so each address gets one email per file, with all of its results. This avoids sending one person several emails for the same file and lets them see which ZIP codes had problems.
+* **Partial results:** For valid input files, the output is always written with a status for each row, even if some API lookups fail. Successful results are delivered right away, but rows marked `API_ERROR` are not retried automatically.
+
+See [DESIGN.md](DESIGN.md) for the full design.
+
 ## Known Limitations
 * Only place saved files in the inbox. Files still being copied or written may be read partially.
 * Run only one scheduler at any given time and stop it before running `process_inbox`. Two scans running at once may process the same file.

@@ -246,6 +246,64 @@ class ProcessorServiceTests(SimpleTestCase):
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
+    def test_write_results_csv_escapes_formula_prefixes_in_output(self):
+        temp_path = os.path.join(tempfile.gettempdir(), "processor_output_formula.csv")
+        rows = [
+            {
+                "zip_code": "=SUM(A1:A2)",
+                "email": "+not_a_command",
+                "state": "-danger",
+                "state_abbreviation": "@user",
+                "status": "\tVISIBLE",
+            },
+            {
+                "zip_code": "\rBOT",
+                "email": "safe@example.com",
+                "state": "California",
+                "state_abbreviation": "CA",
+                "status": "OK",
+            },
+        ]
+
+        try:
+            write_results_csv(temp_path, rows)
+            with open(temp_path, "r", encoding="utf-8", newline="") as handle:
+                csv_rows = list(csv.DictReader(handle))
+            self.assertEqual(csv_rows[0]["zip_code"], "'=SUM(A1:A2)")
+            self.assertEqual(csv_rows[0]["email"], "'+not_a_command")
+            self.assertEqual(csv_rows[0]["state"], "'-danger")
+            self.assertEqual(csv_rows[0]["state_abbreviation"], "'@user")
+            self.assertEqual(csv_rows[0]["status"], "'\tVISIBLE")
+            self.assertEqual(csv_rows[1]["zip_code"], "'\rBOT")
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
+    def test_write_results_csv_keeps_safe_values_unchanged(self):
+        temp_path = os.path.join(tempfile.gettempdir(), "processor_output_safe.csv")
+        rows = [
+            {
+                "zip_code": "02108",
+                "email": "user@example.com",
+                "state": "California",
+                "state_abbreviation": "CA",
+                "status": "OK",
+            }
+        ]
+
+        try:
+            write_results_csv(temp_path, rows)
+            with open(temp_path, "r", encoding="utf-8", newline="") as handle:
+                csv_rows = list(csv.DictReader(handle))
+            self.assertEqual(csv_rows[0]["zip_code"], "02108")
+            self.assertEqual(csv_rows[0]["email"], "user@example.com")
+            self.assertEqual(csv_rows[0]["state"], "California")
+            self.assertEqual(csv_rows[0]["state_abbreviation"], "CA")
+            self.assertEqual(csv_rows[0]["status"], "OK")
+        finally:
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+
     @mock.patch("processor.services.csv.DictWriter")
     def test_write_results_csv_removes_partial_file_when_write_fails(self, mock_writer):
         temp_path = os.path.join(tempfile.gettempdir(), "processor_output_fail.csv")

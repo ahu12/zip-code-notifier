@@ -1,7 +1,7 @@
 # Copilot Prompt Log
 Tool: GitHub Copilot Chat (Agent mode) in VSCode
 
-I wrote DESIGN.md before starting the code and used it as the reference for the prompts. I built the project in steps: processing, email and settings, inbox handling, scheduler, then comments and cleanup. The .1, .2, and so forth add additional changes or fixes for their step.
+I wrote DESIGN.md before starting the code and used it as the reference for the prompts. I built the project in steps: processing, email and settings, inbox handling, scheduler, comments and cleanup, then an output security fix. The .1, .2, and so forth add additional changes or fixes for their step.
 
 Each prompt that changes code limits the changes to that step and asks Copilot to run the tests. I reviewed the code, ran the tests in my own virtual environment, and tested the application manually. The Notes sections record the results and any issues found.
 
@@ -1416,3 +1416,95 @@ Made changes.
 - Unused `output_path = None` was removed.
 - Typos were fixed.
 - Ran the tests in my venv, 29/29 passed.
+
+---
+
+## Step 5 - Minor update
+
+### Prompt
+```
+Update `write_results_csv` in `processor/services.py` to protect the output CSV from spreadsheet formulas. A small private helper function is fine.
+
+If a value starts with `=`, `+`, `-`, `@`, a tab, or a carriage return, add a single quote (`'`) before it so spreadsheet programs treat it as text. Apply this to every output column.
+
+Only change the values written to the output CSV. Validation, lookups, statuses, emails, and input processing should keep using the original values. Values that don't start with those characters must stay exactly the same, including leading zeros like `02108`.
+
+Add tests to check that each listed character gets a single quote added in the output file. Also check that normal values, including a ZIP with a leading zero and a normal email address, are unchanged.
+
+Only change `services.py` and `tests.py`. Add comments for the new code only. Keep the existing comments and don't change any other behavior.
+
+Run `python manage.py test processor -v 2`, report the new test count, and list each change made.
+```
+
+### Copilot response
+````
+Optimized tool selectionI’m updating the CSV writing path and the existing tests in the focused areas you specified, then I’ll run the processor test suite to verify the behavior.
+
+Searched for regex `write_results_csv|TestCase|def test_` (`**/processor/*.py`), 44 results
+
+Read [](file:///c%3A/Project/processor/services.py#240-240), lines 240 to 307
+
+Read [](file:///c%3A/Project/processor/tests.py#220-220), lines 220 to 300
+
+I’ve pinpointed the exact write path and the existing CSV tests. I’m adding a focused regression test first so the fix is proven against the spreadsheet-formula cases and the unchanged normal values.
+
+Read [](file:///c%3A/Project/processor/tests.py#1-1), lines 1 to 120
+
+Read [](file:///c%3A/Project/processor/services.py#1-1), lines 1 to 120
+
+Replacing 18 lines with 76 lines in [](file:///c%3A/Project/processor/tests.py)
+
+
+```
+
+```
+
+
+Ran terminal command: python manage.py test processor -v 2
+Completed with input: python manage.py test processor -v 2
+
+Read [](file:///c%3A/Users/huan/AppData/Roaming/Code/User/workspaceStorage/1dcc02a780f67267a85d4532bf7a41ff/GitHub.copilot-chat/chat-session-resources/f1daf6b0-9601-4bd3-9522-d01ef781ea9f/call_CuIMteSSExs1FvDGdjOuTQuQ__vscode-1791296735050/content.txt)
+
+The root cause is narrow and isolated: the CSV writer is emitting raw field values without sanitizing leading spreadsheet-trigger characters. I’m fixing only that output layer so the rest of the processing logic stays untouched.
+
+Replacing 29 lines with 37 lines in [](file:///c%3A/Project/processor/services.py)
+
+
+```
+
+```
+
+
+Ran terminal command: python manage.py test processor -v 2
+
+Read [](file:///c%3A/Users/huan/AppData/Roaming/Code/User/workspaceStorage/1dcc02a780f67267a85d4532bf7a41ff/GitHub.copilot-chat/chat-session-resources/f1daf6b0-9601-4bd3-9522-d01ef781ea9f/call_WETzjf5F2VNYkIShUiMgoYgG__vscode-1791296735053/content.txt)
+
+## ✅ CSV formula protection update
+
+I updated the output-only CSV writing in services.py and added the regression checks in tests.py.
+
+### Test result
+Command run:
+`python manage.py test processor -v 2`
+
+Evidence from the fresh run:
+- Found 31 test(s)
+- Ran 31 tests in 0.130s
+- Result: OK
+
+### Changes made
+1. Added a private helper in services.py to prefix any output value that starts with `=`, `+`, `-`, `@`, a tab, or a carriage return with a single quote.
+2. Applied that helper only inside `write_results_csv`, so the CSV output is sanitized without altering internal validation, lookups, statuses, or input-processing values.
+3. Kept safe values unchanged, including values like `02108` and a normal email address.
+4. Added a test in tests.py to verify each dangerous leading character is escaped in the written output file.
+5. Added a second test in tests.py to confirm normal values remain exactly the same.
+
+Made changes.
+````
+
+### Notes
+- Identified during review: input values were written to the output CSV unchanged, so a value starting with `=`, `+`, `-`, or `@` could be run as a formula when the output is opened in Excel.
+- Copilot added the tests first and ran them before changing `services.py`, then added the fix and re-ran them.
+- Reviewed the diff: `services.py` only added the `_escape_output_csv_value` helper and changed the `writerow` line in `write_results_csv`. No existing comments were changed. `tests.py` only added the two new tests.
+- Ran the tests in my venv, 31/31 passed.
+- Manual test with a CSV containing `=1+1` as a ZIP and `@SUM(1+1)` as an email: the output showed `'=1+1` and `'@SUM(1+1)`, normal rows were unchanged (including the leading zero in `02108`), and the email to alice@example.com showed the original `=1+1`, since only the CSV output is escaped.

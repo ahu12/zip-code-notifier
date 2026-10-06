@@ -276,6 +276,14 @@ def process_csv_rows(rows):
     return results
 
 
+def _escape_output_csv_value(value):
+    """Prefix spreadsheet formula triggers with a quote so output stays text."""
+    text = "" if value is None else str(value)
+    if text.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return f"'{text}"
+    return text
+
+
 def write_results_csv(output_path, rows):
     """Write result rows to a UTF-8 CSV file.
 
@@ -297,7 +305,7 @@ def write_results_csv(output_path, rows):
             writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
             writer.writeheader()
             for row in rows:
-                writer.writerow({key: row.get(key, "") for key in fieldnames})
+                writer.writerow({key: _escape_output_csv_value(row.get(key, "")) for key in fieldnames})
         os.replace(temp_path, output_path)
     except Exception:
         # If writing fails, delete the temp file so no partial output is left behind.

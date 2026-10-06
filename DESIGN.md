@@ -106,3 +106,5 @@ Rules:
 - File naming: Keep the original input name and add a number if needed in `processed/` and `error/`. This keeps files recognizable without overwriting them. Timestamps are only used for output files.
 - Email validation: Have CSV processing and notifications share `is_valid_email` so both use the same validation rules.
 - Scan interval: Added `--interval-seconds` for faster demos and testing. The default stays at 120 seconds.
+- Secret key: Removed the default `SECRET_KEY` added during the email and settings step. The app now requires it in `.env`. Found during code review.
+- CSV formula injection: Output values starting with `=`, `+`, `-`, `@`, a tab, or a carriage return now get a leading apostrophe so spreadsheet programs treat them as text. Identified during review.

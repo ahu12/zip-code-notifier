@@ -184,6 +184,7 @@ Run only one scheduler at a time, and stop it before running `process_inbox`. If
 * The file naming convention is: `<input name>_<timestamp>.csv`. Numbers will be added at the end if needed. The timestamp format: YYYYMMDDHHMMSS in local time, for example `test_input_20261003121230.csv`
 * Input files keep their names in `data/processed` or `data/error`. If a file with the same name already exists, a number is added, for example `test_input_1.csv`
 * Output files will have the following headers: `zip_code, email, state, state_abbreviation, status`
+* Values starting with `=`, `+`, `-`, `@`, a tab, or a carriage return get a leading apostrophe (`'`) so spreadsheet programs treat them as text instead of formulas.
 
 Each row in the output has one of these statuses:
 
@@ -281,7 +282,7 @@ The tests cover CSV reading and validation, the ZIP rules, API retry rules, emai
 python manage.py test processor -v 2
 ```
 
-* A successful run shows 29 tests, all `ok`, ending with `OK`.
+* A successful run shows 31 tests, all `ok`, ending with `OK`.
 * ERROR lines and tracebacks in the output are expected: some tests simulate failures on purpose.
 * The tests mock the ZIP API and email sending - they run without network access and never send real emails.
 * The tests check the logic and error handling. The [Verification](#verification) steps check the real API. The Gmail setup in [Configuration](#configuration) was used to check real email delivery.
@@ -329,7 +330,7 @@ zip-code-notifier/
 ```
 
 ## Design Decisions
-* **State tracking:** I used folders to track which files were processed or had errors. This kept setup and testing simpler without needing a database. The trade-off is that retrying a file or restarting after a crash can send duplicate emails, because there is no record of what was already sent. Tracking processed files and sent emails is the next step I'd take.
+* **State tracking:** For the scope of the assignment, I used folders to track which files were processed or had errors. This kept setup and testing simpler without needing a database. The trade-off is that retrying a file or restarting after a crash can send duplicate emails, because there is no record of what was already sent. Tracking processed files and sent emails is the next step I'd take.
 * **Scheduler:** I used APScheduler because there is only one job running every two minutes, and it works on Windows. Celery would add a message broker and worker processes that this assignment didn't need. `process_inbox()` could run as a Celery task without changes.
 * **Notifications:** I group results so each address gets one email per file, with all of its results. This avoids sending one person several emails for the same file and lets them see which ZIP codes had problems.
 * **Partial results:** For valid input files, the output is always written with a status for each row, even if some API lookups fail. Successful results are delivered right away, but rows marked `API_ERROR` are not retried automatically.
@@ -344,6 +345,8 @@ See [DESIGN.md](DESIGN.md) for the full design.
 * Excel may display `02108` as `2108`, but the leading zero is still in the CSV.
 * Puerto Rico and other US territory ZIP codes return `NOT_FOUND` because the API lists them separately from US ZIPs.
 * Email validation checks the email format, but cannot verify if a mailbox actually exists.
+* During an API outage, each unique ZIP code is retried up to three times, so a large file can take a long time to process.
+* Keeps all data folders on the same drive. Moving files between drives is not supported and stops the run.
 * Developed and tested on Windows 11. The code is intended to work across platforms, but macOS and Linux commands have not been tested.
 
 ## Design and AI Usage
